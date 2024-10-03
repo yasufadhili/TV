@@ -13,7 +13,7 @@ import countries from '@/data/countries.json';
 import { router, Stack } from 'expo-router';
 import { Text } from '@/components';
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 40;
 
 interface FilterModalProps {
   visible: boolean;
@@ -77,13 +77,13 @@ const FilterModal: React.FC<FilterModalProps> = ({ visible, onClose, filters, se
   );
 };
 
+
 const TVChannelsScreen: React.FC = () => {
   const [displayedChannels, setDisplayedChannels] = useState<Channel[]>([]);
   const [page, setPage] = useState<number>(1);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [searchTerm, setSearchTerm] = useState<string>("");
   const [filters, setFilters] = useState<FilterState>({
     country: [],
     category: [],
@@ -99,11 +99,10 @@ const TVChannelsScreen: React.FC = () => {
     const endIndex = startIndex + ITEMS_PER_PAGE;
 
     const filteredChannels = channels.filter((channel) => {
-      const matchesSearch = channel.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCountry = filters.country.length === 0 || filters.country.includes(channel.country);
       const matchesCategory = filters.category.length === 0 || channel.categories.some((cat) => filters.category.includes(cat));
       const matchesLanguage = filters.language.length === 0 || channel.languages.some((lang) => filters.language.includes(lang));
-      return matchesSearch && matchesCountry && matchesCategory && matchesLanguage;
+      return matchesCountry && matchesCategory && matchesLanguage;
     });
 
     const newChannels = filteredChannels.slice(startIndex, endIndex);
@@ -113,11 +112,11 @@ const TVChannelsScreen: React.FC = () => {
     setHasMore(endIndex < filteredChannels.length);
     setLoading(false);
     setRefreshing(false);
-  }, [page, loading, hasMore, searchTerm, filters]);
+  }, [page, loading, hasMore, filters]);
 
   useEffect(() => {
     loadChannels(true);
-  }, [searchTerm, filters]);
+  }, [filters]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -142,73 +141,37 @@ const TVChannelsScreen: React.FC = () => {
     <Stack.Screen
       options={{
         title: "TV",
-        headerRight: ()=> (
-          <View
-            style={{
-              flexDirection: "row",
-              gap: 12,
-              
-            }}
-          >
-            <TouchableOpacity
-              onPress={()=>setFilterModalVisible(true)}
-              style={{
-                padding: 8,
-                borderRadius: 12
-              }}
-            >
-              <Ionicons name={"filter"} color={"#f1f1f1"} size={26} />
+        headerRight: () => (
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={() => setFilterModalVisible(true)} style={styles.headerButton}>
+              <Ionicons name="filter" color="#f1f1f1" size={26} />
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={()=> router.navigate("/favourites")}
-              style={{
-                padding: 8,
-                borderRadius: 12
-              }}
-            >
-              <Ionicons name={"heart"} color={"#f1f1f1"} size={26} />
+            <TouchableOpacity onPress={() => router.push("/favourites")} style={styles.headerButton}>
+              <Ionicons name="heart" color="#f1f1f1" size={26} />
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={()=> router.navigate("/search")}
-              style={{
-                padding: 8,
-                borderRadius: 12
-              }}
-            >
-              <Ionicons name={"search"} color={"#f1f1f1"} size={26} />
+            <TouchableOpacity onPress={() => router.push("/search")} style={styles.headerButton}>
+              <Ionicons name="search" color="#f1f1f1" size={26} />
             </TouchableOpacity>
           </View>
         ),
       }}
     />
     <View style={styles.container}>
-      <View style={styles.searchContainer}>
-        <View style={styles.inputContainer}>
-          <Ionicons name="search" size={20} color="#666" />
-          <TextInput
-            style={styles.input}
-            value={searchTerm}
-            onChangeText={setSearchTerm}
-            placeholder="Search channels..."
-          />
-        </View>
-        <TouchableOpacity onPress={() => setFilterModalVisible(true)} style={styles.filterButton}>
-          <Ionicons name="filter" size={24} color="#000" />
-        </TouchableOpacity>
-      </View>
       <FlatList
         data={displayedChannels}
         renderItem={renderChannelItem}
         keyExtractor={(item) => item.id}
         onEndReached={() => loadChannels()}
-        onEndReachedThreshold={0.5}
+        onEndReachedThreshold={0.1}
         refreshing={refreshing}
         onRefresh={handleRefresh}
-        ListFooterComponent={() => loading && <View
-          style={{padding: 120}}
-        >
-          <ActivityIndicator size="large" color="#0000ff" />
-          </View>}
+        ListFooterComponent={() => (
+          loading && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#0000ff" />
+            </View>
+          )
+        )}
       />
       <FilterModal
         visible={filterModalVisible}
@@ -225,6 +188,7 @@ const TVChannelsScreen: React.FC = () => {
     </>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
@@ -321,6 +285,17 @@ const styles = StyleSheet.create({
   },
   filterItemSelected: {
     backgroundColor: '#007AFF',
+  },
+  headerRight: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  headerButton: {
+    padding: 8,
+    borderRadius: 12,
+  },
+  loadingContainer: {
+    paddingVertical: 20,
   },
 });
 
