@@ -69,7 +69,7 @@ export type BlocklistItem = {
   ref: string;
 };
 
-export type TV = {
+export type TVChannel = {
   channels: Channel[];
   streams: Stream[];
   guides: Guide[];
