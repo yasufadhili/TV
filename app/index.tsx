@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, FlatList, Image, StyleSheet, TouchableOpacity, Modal, TextInput, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { View, FlatList, Image, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import BottomSheet from '@gorhom/bottom-sheet';
 
 import { Channel, Region, Category, Language, Country } from '@/types';
 
@@ -16,8 +17,7 @@ import { Text } from '@/components';
 const ITEMS_PER_PAGE = 40;
 
 interface FilterModalProps {
-  visible: boolean;
-  onClose: () => void;
+  bottomSheetRef: React.RefObject<BottomSheet>;
   filters: FilterState;
   setFilters: React.Dispatch<React.SetStateAction<FilterState>>;
   options: {
@@ -33,50 +33,72 @@ interface FilterState {
   language: string[];
 }
 
-const FilterModal: React.FC<FilterModalProps> = ({ visible, onClose, filters, setFilters, options }) => {
+const FilterBottomSheet: React.FC<FilterModalProps> = ({
+  bottomSheetRef,
+  filters,
+  setFilters,
+  options,
+}) => {
+  const snapPoints = useMemo(() => ['25%', '50%', '90%'], []);
+
+  const toggleFilter = (key: keyof FilterState, itemId: string) => {
+    setFilters((prevFilters) => {
+      const updatedFilters = { ...prevFilters };
+      const filterList = updatedFilters[key];
+      if (filterList.includes(itemId)) {
+        updatedFilters[key] = filterList.filter((id) => id !== itemId);
+      } else {
+        updatedFilters[key] = [...filterList, itemId];
+      }
+      return updatedFilters;
+    });
+  };
+
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Filters</Text>
-          {Object.keys(options).map((key) => (
-            <View key={key} style={styles.filterSection}>
-              <Text style={styles.filterTitle}>{key.charAt(0).toUpperCase() + key.slice(1)}</Text>
-              <FlatList
-                data={options[key as keyof typeof options]}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={[
-                      styles.filterItem,
-                      filters[key as keyof FilterState].includes(item.id) && styles.filterItemSelected,
-                    ]}
-                    onPress={() => {
-                      const updatedFilters = { ...filters };
-                      if (updatedFilters[key as keyof FilterState].includes(item.id)) {
-                        updatedFilters[key as keyof FilterState] = updatedFilters[key as keyof FilterState].filter((id) => id !== item.id);
-                      } else {
-                        updatedFilters[key as keyof FilterState].push(item.id);
-                      }
-                      setFilters(updatedFilters);
-                    }}
-                  >
-                    <Text>{item.name}</Text>
-                  </TouchableOpacity>
-                )}
-                keyExtractor={(item) => item.id}
-                horizontal
-              />
-            </View>
-          ))}
-          <TouchableOpacity style={styles.button} onPress={onClose}>
-            <Text style={styles.buttonText}>Apply Filters</Text>
-          </TouchableOpacity>
-        </View>
+    <BottomSheet
+      ref={bottomSheetRef}
+      index={-1}
+      snapPoints={snapPoints}
+      enablePanDownToClose
+      backgroundStyle={styles.bottomSheetBackground}
+    >
+      <View style={styles.modalContent}>
+        <Text style={styles.modalTitle}>Filters</Text>
+        {Object.keys(options).map((key) => (
+          <View key={key} style={styles.filterSection}>
+            <Text style={styles.filterTitle}>
+              {key.charAt(0).toUpperCase() + key.slice(1)}
+            </Text>
+            <FlatList
+              data={options[key as keyof typeof options]}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.filterItem,
+                    filters[key as keyof FilterState].includes(item.id) &&
+                      styles.filterItemSelected,
+                  ]}
+                  onPress={() => toggleFilter(key as keyof FilterState, item.id)}
+                >
+                  <Text>{item.name}</Text>
+                </TouchableOpacity>
+              )}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+            />
+          </View>
+        ))}
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => bottomSheetRef.current?.close()}
+        >
+          <Text style={styles.buttonText}>Apply Filters</Text>
+        </TouchableOpacity>
       </View>
-    </Modal>
+    </BottomSheet>
   );
 };
-
 
 const TVChannelsScreen: React.FC = () => {
   const [displayedChannels, setDisplayedChannels] = useState<Channel[]>([]);
@@ -91,6 +113,13 @@ const TVChannelsScreen: React.FC = () => {
   });
   const [filterModalVisible, setFilterModalVisible] = useState(false);
 
+  // Bottom Sheet ref
+  const bottomSheetRef = useRef<BottomSheet>(null);
+
+  // Bottom sheet snap points
+  const snapPoints = useMemo(() => ['25%', '50%'], []);
+
+  // Load channels based on filters
   const loadChannels = useCallback((refresh: boolean = false) => {
     if (loading || (!hasMore && !refresh)) return;
     setLoading(true);
@@ -124,6 +153,14 @@ const TVChannelsScreen: React.FC = () => {
     loadChannels(true);
   };
 
+  // Remove individual filters
+  const removeFilter = (type: keyof FilterState, id: string) => {
+    setFilters((prevFilters) => ({
+      ...prevFilters,
+      [type]: prevFilters[type].filter((filterId) => filterId !== id),
+    }));
+  };
+
   const renderChannelItem = ({ item: channel }: { item: Channel }) => (
     <View style={styles.channelItem}>
       <Image source={{ uri: channel.logo }} style={styles.channelLogo} />
@@ -136,6 +173,36 @@ const TVChannelsScreen: React.FC = () => {
     </View>
   );
 
+  // Render applied filters as tags
+  const renderFilterTags = () => {
+    const tags = [];
+    if (filters.country.length > 0) {
+      filters.country.forEach((id) => {
+        const country = countries.find(c => c.code === id);
+        if (country) {
+          tags.push({ type: 'country', label: country.name, id });
+        }
+      });
+    }
+    if (filters.category.length > 0) {
+      filters.category.forEach((id) => {
+        const category = categories.find(cat => cat.id === id);
+        if (category) {
+          tags.push({ type: 'category', label: category.name, id });
+        }
+      });
+    }
+    if (filters.language.length > 0) {
+      filters.language.forEach((id) => {
+        const language = languages.find(lang => lang.code === id);
+        if (language) {
+          tags.push({ type: 'language', label: language.name, id });
+        }
+      });
+    }
+    return tags;
+  };
+
   return (
     <>
     <Stack.Screen
@@ -143,7 +210,7 @@ const TVChannelsScreen: React.FC = () => {
         title: "TV",
         headerRight: () => (
           <View style={styles.headerRight}>
-            <TouchableOpacity onPress={() => setFilterModalVisible(true)} style={styles.headerButton}>
+            <TouchableOpacity onPress={() => bottomSheetRef.current?.expand()} style={styles.headerButton}>
               <Ionicons name="filter" color="#f1f1f1" size={26} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => router.push("/favourites")} style={styles.headerButton}>
@@ -156,7 +223,24 @@ const TVChannelsScreen: React.FC = () => {
         ),
       }}
     />
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      {/* Render selected filters as horizontal tags */}
+      {renderFilterTags().length > 0 && (
+        <FlatList
+          data={renderFilterTags()}
+          renderItem={({ item }) => (
+            <TouchableOpacity style={styles.filterTag} onPress={() => removeFilter(item.type as keyof FilterState, item.id)}>
+              <Text style={styles.filterTagText}>{item.label}</Text>
+              <Ionicons name="close-circle" size={16} color="#fff" />
+            </TouchableOpacity>
+          )}
+          keyExtractor={(item) => `${item.type}-${item.id}`}
+          horizontal
+          contentContainerStyle={styles.filterTagsContainer}
+          showsHorizontalScrollIndicator={false}
+        />
+      )}
+
       <FlatList
         data={displayedChannels}
         renderItem={renderChannelItem}
@@ -173,53 +257,34 @@ const TVChannelsScreen: React.FC = () => {
           )
         )}
       />
-      <FilterModal
-        visible={filterModalVisible}
-        onClose={() => setFilterModalVisible(false)}
-        filters={filters}
-        setFilters={setFilters}
-        options={{
-          country: countries,
-          category: categories,
-          language: languages,
-        }}
-      />
-    </View>
+      <FilterBottomSheet
+          bottomSheetRef={bottomSheetRef}
+          filters={filters}
+          setFilters={setFilters}
+          options={{
+            country: countries,
+            category: categories,
+            language: languages,
+          }}
+        />
+        
+    </SafeAreaView>
     </>
   );
 };
-
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#100F10',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    margin: 16,
-  },
-  searchContainer: {
+  headerRight: {
     flexDirection: 'row',
-    alignItems: 'center',
-    margin: 16,
+    gap: 12,
   },
-  inputContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#100F10',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-  },
-  input: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 16,
-  },
-  filterButton: {
-    marginLeft: 12,
+  headerButton: {
+    padding: 8,
+    borderRadius: 12,
   },
   channelItem: {
     flexDirection: 'row',
@@ -238,8 +303,40 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   channelName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#f1f1f1',
+  },
+  filterTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#6200ee',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  filterTagText: {
+    color: '#fff',
+    marginRight: 4,
+  },
+  filterTagsContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#1f1f1f',
+  },
+  loadingContainer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  sheetContent: {
+    flex: 1,
+    padding: 16,
+  },
+  sheetTitle: {
     fontSize: 18,
     fontWeight: 'bold',
+    marginBottom: 12,
   },
   button: {
     backgroundColor: '#007AFF',
@@ -253,20 +350,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  bottomSheetBackground: {
+    backgroundColor: '#100F10',
   },
   modalContent: {
-    backgroundColor: '#100F10',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    flex: 1,
     padding: 16,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
+    color: '#FFFFFF',
     marginBottom: 16,
   },
   filterSection: {
@@ -275,28 +369,42 @@ const styles = StyleSheet.create({
   filterTitle: {
     fontSize: 16,
     fontWeight: 'bold',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   filterItem: {
-    backgroundColor: '#f0f0f0',
-    padding: 8,
-    borderRadius: 4,
+    backgroundColor: '#3A3A3C',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
     marginRight: 8,
   },
   filterItemSelected: {
     backgroundColor: '#007AFF',
   },
-  headerRight: {
-    flexDirection: "row",
-    gap: 12,
+  activeFiltersContainer: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#3A3A3C',
   },
-  headerButton: {
-    padding: 8,
-    borderRadius: 12,
+  activeFiltersList: {
+    paddingHorizontal: 8,
   },
-  loadingContainer: {
-    paddingVertical: 20,
+  activeFilterItem: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    marginRight: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  activeFilterText: {
+    color: '#FFFFFF',
+    fontSize: 14,
   },
 });
 
 export default TVChannelsScreen;
+
+   

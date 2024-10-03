@@ -1,6 +1,7 @@
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 const AppLayout = () => (
   <>
@@ -11,15 +12,19 @@ const AppLayout = () => (
 
 const Layout = () => (
   <ThemeProvider value={DarkTheme} >
-    <Stack screenOptions={{
-      headerStyle: {
-        backgroundColor: "#100F10"
-      },
-      headerTitleStyle: {
-        fontSize: 24,
-        fontWeight: "bold"
-      },
-    }} />
+    <GestureHandlerRootView
+      style={{flex: 1}}
+    >
+      <Stack screenOptions={{
+        headerStyle: {
+          backgroundColor: "#100F10"
+        },
+        headerTitleStyle: {
+          fontSize: 24,
+          fontWeight: "bold"
+        },
+      }} />
+    </GestureHandlerRootView>
   </ThemeProvider>
 );
 
