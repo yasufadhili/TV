@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, Image, StyleSheet, TouchableOpacity, Modal, TextInput, ActivityIndicator } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import { View, FlatList, Image, StyleSheet, TouchableOpacity, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -11,6 +10,8 @@ import regions from '@/data/regions.json';
 import categories from '@/data/categories.json';
 import languages from '@/data/languages.json';
 import countries from '@/data/countries.json';
+import { router, Stack } from 'expo-router';
+import { Text } from '@/components';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -137,9 +138,50 @@ const TVChannelsScreen: React.FC = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="auto" />
-      <Text style={styles.title}>TV Channels</Text>
+    <>
+    <Stack.Screen
+      options={{
+        title: "TV",
+        headerRight: ()=> (
+          <View
+            style={{
+              flexDirection: "row",
+              gap: 12,
+              
+            }}
+          >
+            <TouchableOpacity
+              onPress={()=>setFilterModalVisible(true)}
+              style={{
+                padding: 8,
+                borderRadius: 12
+              }}
+            >
+              <Ionicons name={"filter"} color={"#f1f1f1"} size={26} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={()=> router.navigate("/favourites")}
+              style={{
+                padding: 8,
+                borderRadius: 12
+              }}
+            >
+              <Ionicons name={"heart"} color={"#f1f1f1"} size={26} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={()=> router.navigate("/search")}
+              style={{
+                padding: 8,
+                borderRadius: 12
+              }}
+            >
+              <Ionicons name={"search"} color={"#f1f1f1"} size={26} />
+            </TouchableOpacity>
+          </View>
+        ),
+      }}
+    />
+    <View style={styles.container}>
       <View style={styles.searchContainer}>
         <View style={styles.inputContainer}>
           <Ionicons name="search" size={20} color="#666" />
@@ -175,14 +217,15 @@ const TVChannelsScreen: React.FC = () => {
           language: languages,
         }}
       />
-    </SafeAreaView>
+    </View>
+    </>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#100F10',
   },
   title: {
     fontSize: 24,
@@ -198,7 +241,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#100F10',
     borderRadius: 8,
     paddingHorizontal: 12,
   },
@@ -212,7 +255,7 @@ const styles = StyleSheet.create({
   },
   channelItem: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: '#100F10',
     margin: 8,
     padding: 12,
     borderRadius: 8,
@@ -248,7 +291,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: '#100F10',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 16,
