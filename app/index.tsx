@@ -79,11 +79,11 @@ const FilterModal: React.FC<FilterModalProps> = ({ visible, onClose, filters, se
 
 const TVChannelsScreen: React.FC = () => {
   const [displayedChannels, setDisplayedChannels] = useState<Channel[]>([]);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState<number>(1);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState<string>("");
   const [filters, setFilters] = useState<FilterState>({
     country: [],
     category: [],
@@ -201,10 +201,14 @@ const TVChannelsScreen: React.FC = () => {
         renderItem={renderChannelItem}
         keyExtractor={(item) => item.id}
         onEndReached={() => loadChannels()}
-        onEndReachedThreshold={0.1}
+        onEndReachedThreshold={0.5}
         refreshing={refreshing}
         onRefresh={handleRefresh}
-        ListFooterComponent={() => loading && <ActivityIndicator size="large" color="#0000ff" />}
+        ListFooterComponent={() => loading && <View
+          style={{padding: 120}}
+        >
+          <ActivityIndicator size="large" color="#0000ff" />
+          </View>}
       />
       <FilterModal
         visible={filterModalVisible}
